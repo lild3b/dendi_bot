@@ -7,6 +7,7 @@ import os
 import io
 import uuid
 import aiohttp
+from openai import AsyncOpenAI
 from PIL import Image, ImageDraw, ImageFont
 
 intents = discord.Intents.default()
@@ -16,8 +17,8 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 pnl_data = {}
 DATA_FILE = "pnl_data.json"
 
-QUICKCHAT_API_KEY = os.getenv("QUICKCHAT_API_KEY")
-QUICKCHAT_SCENARIO_ID = "u5nco0jde0"
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 ALLOWED_SUMMARY_CHANNELS = [1491280657387622420]
 GUILD_ID = discord.Object(id=1491256302171717683)
 
@@ -264,9 +265,9 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
 
     channel_name = interaction.channel.name if interaction.channel else "unknown"
 
-    if not QUICKCHAT_API_KEY:
+    if not OPENAI_API_KEY:
         await interaction.followup.send(
-            "❌ QuickChat API key is not configured.", ephemeral=True
+            "❌ OpenAI API key is not configured.", ephemeral=True
         )
         return
 
@@ -287,41 +288,31 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
         return
 
     messages_text = "\n".join(messages)
-    prompt = (
-        f"Here are the recent messages from a trading Discord channel called #{channel_name}. "
-        f"Please summarize the key trading results, notable wins/losses, and any important patterns or insights:\n\n"
-        f"{messages_text}"
-    )
 
-    conv_id = str(uuid.uuid4())[:8]
-
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.post(
-                "https://chat.quickchat.ai/chat",
-                json={
-                    "api_key": QUICKCHAT_API_KEY,
-                    "scenario_id": QUICKCHAT_SCENARIO_ID,
-                    "text": prompt,
-                    "conv_id": conv_id,
+    try:
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a trading assistant. Summarize the trading activity from these Discord messages. "
+                        "Highlight key results, notable wins and losses, trade counts, and any patterns or insights. "
+                        "Be concise and clear."
+                    ),
                 },
-                timeout=aiohttp.ClientTimeout(total=30),
-            ) as resp:
-                if resp.status != 200:
-                    body = await resp.text()
-                    print(f"QuickChat error {resp.status}: {body}")
-                    await interaction.followup.send(
-                        f"❌ AI returned an error (status {resp.status}): {body[:300]}",
-                        ephemeral=True,
-                    )
-                    return
-                data = await resp.json()
-                reply = data.get("reply", "No response from AI.")
-        except Exception as e:
-            await interaction.followup.send(
-                f"❌ Failed to reach AI: {e}", ephemeral=True
-            )
-            return
+                {
+                    "role": "user",
+                    "content": f"Here are the recent messages from #{channel_name}:\n\n{messages_text}",
+                },
+            ],
+            max_tokens=600,
+        )
+        reply = response.choices[0].message.content
+    except Exception as e:
+        print(f"[summarize] OpenAI error: {e}")
+        await interaction.followup.send(f"❌ Failed to reach AI: {e}", ephemeral=True)
+        return
 
     embed = discord.Embed(
         title=f"🤖 AI Summary — #{channel_name}",

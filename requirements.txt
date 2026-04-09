@@ -3,3 +3,4 @@ Pillow>=12.2.0
 discord.py
 Pillow
 aiohttp
+openai
