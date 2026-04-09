@@ -246,7 +246,13 @@ async def pnl_summary(interaction: discord.Interaction):
     limit="Number of recent messages to summarize (default 20, max 50)"
 )
 async def summarize(interaction: discord.Interaction, limit: int = 20):
-    await interaction.response.defer()
+    try:
+        await interaction.response.defer()
+    except Exception as e:
+        print(f"[summarize] defer failed: {e}")
+        return
+
+    print(f"[summarize] invoked by {interaction.user} in channel id={interaction.channel.id if interaction.channel else 'None'}")
 
     channel_id = interaction.channel.id if interaction.channel else None
     if channel_id not in ALLOWED_SUMMARY_CHANNELS:
@@ -325,6 +331,18 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
         text=f"Based on last {len(messages)} messages • Powered by QuickChat AI"
     )
     await interaction.followup.send(embed=embed)
+
+
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    print(f"[tree error] {error}")
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(f"❌ Error: {error}", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ Error: {error}", ephemeral=True)
+    except Exception as e:
+        print(f"[tree error] failed to send error message: {e}")
 
 
 @bot.event
