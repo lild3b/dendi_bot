@@ -19,6 +19,7 @@ DATA_FILE = "pnl_data.json"
 QUICKCHAT_API_KEY = os.getenv("QUICKCHAT_API_KEY")
 QUICKCHAT_SCENARIO_ID = "u5nco0jde0"
 ALLOWED_SUMMARY_CHANNELS = [1491280657387622420]
+GUILD_ID = discord.Object(id=1491256302171717683)
 
 
 def load_pnl_data():
@@ -349,8 +350,9 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
 async def on_ready():
     load_pnl_data()
     try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} command(s)")
+        bot.tree.copy_global_to(guild=GUILD_ID)
+        synced = await bot.tree.sync(guild=GUILD_ID)
+        print(f"Synced {len(synced)} command(s) to guild")
     except Exception as e:
         print(f"Failed to sync commands: {e}")
     print(f"Logged in as {bot.user}")
