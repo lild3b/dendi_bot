@@ -105,16 +105,10 @@ def render_calendar_image(year: int, month: int):
                     trades_text = ""
                     color = "#8b949e"
 
-                # 🔥 AUTO-SCALE PnL FONT
-                font_size = 130
-                while font_size > 10:
-                    pnl_font = get_font(font_size)
-                    bbox = draw.textbbox((0, 0), pnl_text, font=pnl_font)
-                    text_w = bbox[2] - bbox[0]
-
-                    if text_w < cell_width - 40:
-                        break
-                    font_size -= 2
+                # Fixed PnL font size for consistency
+                pnl_font = get_font(90)
+                bbox = draw.textbbox((0, 0), pnl_text, font=pnl_font)
+                text_w = bbox[2] - bbox[0]
 
                 # Draw BIG PnL
                 draw.text(
