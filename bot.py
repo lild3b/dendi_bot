@@ -46,7 +46,7 @@ def render_calendar_image(year: int, month: int):
     month_name = calendar.month_name[month]
 
     width = 1300
-    row_height = 180
+    row_height = 200
     header_height = 180
     footer_height = 120
     height = header_height + len(cal) * row_height + footer_height
@@ -100,7 +100,7 @@ def render_calendar_image(year: int, month: int):
                     color = "#8b949e"
 
                 # 🔥 AUTO-SCALE PnL FONT
-                font_size = 80
+                font_size = 100
                 while font_size > 10:
                     pnl_font = get_font(font_size)
                     bbox = draw.textbbox((0, 0), pnl_text, font=pnl_font)
