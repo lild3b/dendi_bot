@@ -18,7 +18,7 @@ DATA_FILE = "pnl_data.json"
 
 QUICKCHAT_API_KEY = os.getenv("QUICKCHAT_API_KEY")
 QUICKCHAT_SCENARIO_ID = "u5nco0jde0"
-ALLOWED_SUMMARY_CHANNELS = ["trade-result"]
+ALLOWED_SUMMARY_CHANNELS = [1491280657387622420]
 
 
 def load_pnl_data():
@@ -243,13 +243,14 @@ async def pnl_summary(interaction: discord.Interaction):
 async def summarize(interaction: discord.Interaction, limit: int = 20):
     await interaction.response.defer()
 
-    channel_name = interaction.channel.name if interaction.channel else ""
-    if channel_name not in ALLOWED_SUMMARY_CHANNELS:
-        allowed = ", ".join(f"#{c}" for c in ALLOWED_SUMMARY_CHANNELS)
+    channel_id = interaction.channel.id if interaction.channel else None
+    if channel_id not in ALLOWED_SUMMARY_CHANNELS:
         await interaction.followup.send(
-            f"❌ This command can only be used in: {allowed}", ephemeral=True
+            "❌ This command is not allowed in this channel.", ephemeral=True
         )
         return
+
+    channel_name = interaction.channel.name if interaction.channel else "unknown"
 
     if not QUICKCHAT_API_KEY:
         await interaction.followup.send("❌ QuickChat API key is not configured.", ephemeral=True)
