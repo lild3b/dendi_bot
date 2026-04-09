@@ -5,13 +5,20 @@ import calendar
 import json
 import os
 import io
+import uuid
+import aiohttp
 from PIL import Image, ImageDraw, ImageFont
 
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
 pnl_data = {}
 DATA_FILE = "pnl_data.json"
+
+QUICKCHAT_API_KEY = os.getenv("QUICKCHAT_API_KEY")
+QUICKCHAT_SCENARIO_ID = "u5nco0jde0"
+ALLOWED_SUMMARY_CHANNELS = ["trade-result"]
 
 
 def load_pnl_data():
@@ -229,6 +236,79 @@ async def pnl_summary(interaction: discord.Interaction):
         inline=False,
     )
     await interaction.response.send_message(embed=embed)
+
+
+@bot.tree.command(name="summarize", description="Summarize recent messages from #trade-result using AI")
+@discord.app_commands.describe(limit="Number of recent messages to summarize (default 20, max 50)")
+async def summarize(interaction: discord.Interaction, limit: int = 20):
+    await interaction.response.defer()
+
+    channel_name = interaction.channel.name if interaction.channel else ""
+    if channel_name not in ALLOWED_SUMMARY_CHANNELS:
+        allowed = ", ".join(f"#{c}" for c in ALLOWED_SUMMARY_CHANNELS)
+        await interaction.followup.send(
+            f"❌ This command can only be used in: {allowed}", ephemeral=True
+        )
+        return
+
+    if not QUICKCHAT_API_KEY:
+        await interaction.followup.send("❌ QuickChat API key is not configured.", ephemeral=True)
+        return
+
+    limit = max(1, min(limit, 50))
+
+    messages = []
+    async for msg in interaction.channel.history(limit=limit):
+        if not msg.author.bot and msg.content.strip():
+            ts = msg.created_at.strftime("%Y-%m-%d %H:%M")
+            messages.append(f"[{ts}] {msg.author.display_name}: {msg.content}")
+
+    messages.reverse()
+
+    if not messages:
+        await interaction.followup.send("❌ No messages found to summarize.", ephemeral=True)
+        return
+
+    messages_text = "\n".join(messages)
+    prompt = (
+        f"Here are the recent messages from a trading Discord channel called #{channel_name}. "
+        f"Please summarize the key trading results, notable wins/losses, and any important patterns or insights:\n\n"
+        f"{messages_text}"
+    )
+
+    conv_id = str(uuid.uuid4())[:8]
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            async with session.post(
+                "https://chat.quickchat.ai/chat",
+                json={
+                    "api_key": QUICKCHAT_API_KEY,
+                    "scenario_id": QUICKCHAT_SCENARIO_ID,
+                    "text": prompt,
+                    "conv_id": conv_id,
+                },
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    await interaction.followup.send(
+                        f"❌ AI returned an error (status {resp.status}).", ephemeral=True
+                    )
+                    return
+                data = await resp.json()
+                reply = data.get("reply", "No response from AI.")
+        except Exception as e:
+            await interaction.followup.send(f"❌ Failed to reach AI: {e}", ephemeral=True)
+            return
+
+    embed = discord.Embed(
+        title=f"🤖 AI Summary — #{channel_name}",
+        description=reply,
+        color=discord.Color.blurple(),
+    )
+    embed.set_footer(text=f"Based on last {len(messages)} messages • Powered by QuickChat AI")
+    await interaction.followup.send(embed=embed)
 
 
 @bot.event

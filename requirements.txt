@@ -2,3 +2,4 @@ discord.py>=2.7.1
 Pillow>=12.2.0
 discord.py
 Pillow
+aiohttp
