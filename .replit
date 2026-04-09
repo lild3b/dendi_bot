@@ -3,7 +3,7 @@ modules = ["python-3.11"]
 
 [deployment]
 deploymentTarget = "cloudrun"
-run = ["sh", "-c", "python bot.py"]
+run = ["sh", "-c", "python3 bot.py"]
 
 [nix]
 channel = "stable-25_05"
