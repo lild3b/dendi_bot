@@ -238,8 +238,13 @@ async def pnl_summary(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name="summarize", description="Summarize recent messages from #trade-result using AI")
-@discord.app_commands.describe(limit="Number of recent messages to summarize (default 20, max 50)")
+@bot.tree.command(
+    name="summarize",
+    description="Summarize recent messages from #trade-result using AI",
+)
+@discord.app_commands.describe(
+    limit="Number of recent messages to summarize (default 20, max 50)"
+)
 async def summarize(interaction: discord.Interaction, limit: int = 20):
     await interaction.response.defer()
 
@@ -253,7 +258,9 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
     channel_name = interaction.channel.name if interaction.channel else "unknown"
 
     if not QUICKCHAT_API_KEY:
-        await interaction.followup.send("❌ QuickChat API key is not configured.", ephemeral=True)
+        await interaction.followup.send(
+            "❌ QuickChat API key is not configured.", ephemeral=True
+        )
         return
 
     limit = max(1, min(limit, 50))
@@ -267,7 +274,9 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
     messages.reverse()
 
     if not messages:
-        await interaction.followup.send("❌ No messages found to summarize.", ephemeral=True)
+        await interaction.followup.send(
+            "❌ No messages found to summarize.", ephemeral=True
+        )
         return
 
     messages_text = "\n".join(messages)
@@ -293,14 +302,18 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
             ) as resp:
                 if resp.status != 200:
                     body = await resp.text()
+                    print(f"QuickChat error {resp.status}: {body}")
                     await interaction.followup.send(
-                        f"❌ AI returned an error (status {resp.status}).", ephemeral=True
+                        f"❌ AI returned an error (status {resp.status}): {body[:300]}",
+                        ephemeral=True,
                     )
                     return
                 data = await resp.json()
                 reply = data.get("reply", "No response from AI.")
         except Exception as e:
-            await interaction.followup.send(f"❌ Failed to reach AI: {e}", ephemeral=True)
+            await interaction.followup.send(
+                f"❌ Failed to reach AI: {e}", ephemeral=True
+            )
             return
 
     embed = discord.Embed(
@@ -308,7 +321,9 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
         description=reply,
         color=discord.Color.blurple(),
     )
-    embed.set_footer(text=f"Based on last {len(messages)} messages • Powered by QuickChat AI")
+    embed.set_footer(
+        text=f"Based on last {len(messages)} messages • Powered by QuickChat AI"
+    )
     await interaction.followup.send(embed=embed)
 
 
