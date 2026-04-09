@@ -33,7 +33,13 @@ def save_pnl_data():
 
 
 def get_font(size: int):
-    for name in ["arial.ttf", "DejaVuSans.ttf", "LiberationSans-Regular.ttf"]:
+    for name in [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "arial.ttf",
+        "DejaVuSans.ttf",
+        "LiberationSans-Regular.ttf",
+    ]:
         try:
             return ImageFont.truetype(name, size)
         except OSError:
