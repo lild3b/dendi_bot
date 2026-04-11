@@ -231,9 +231,8 @@ async def add_pnl(
 
     emoji = "📈" if pnl >= 0 else "📉"
     color_emoji = "🟢" if pnl >= 0 else "🔴"
-    for_label = f" for {target.display_name}" if user else ""
     await interaction.response.send_message(
-        f"{color_emoji} **PnL updated{for_label} — {date_key}**\n"
+        f"{color_emoji} **PnL updated for {target.display_name} — {date_key}**\n"
         f"{emoji} Value: `${pnl:+.2f}`\n"
         f"🔢 Trades: `{trades}`\n"
         f"📝 Note: {note or 'None'}",
