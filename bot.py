@@ -70,9 +70,7 @@ def get_font(size: int):
     return ImageFont.load_default()
 
 
-def render_calendar_image(
-    year: int, month: int, user_data: dict, display_name: str = ""
-):
+def render_calendar_image(year: int, month: int, user_data: dict, display_name: str = ""):
     cal = calendar.Calendar(firstweekday=6).monthdayscalendar(year, month)
     month_name = calendar.month_name[month]
     today = datetime.now()
@@ -98,9 +96,7 @@ def render_calendar_image(
     trading_days = len(user_data)
     pnl_color = "#4ade80" if total_pnl >= 0 else "#f87171"
 
-    header_title = f"{month_name} {year}" + (
-        f"  •  {display_name}" if display_name else ""
-    )
+    header_title = f"{month_name} {year}" + (f"  •  {display_name}" if display_name else "")
     draw.text((20, 18), header_title, font=title_font, fill="#ffffff")
 
     stats_label = "Monthly stats:"
@@ -121,17 +117,10 @@ def render_calendar_image(
 
     draw.text((sx, sy), stats_label, font=stats_font, fill="#9ca3af")
     draw.text((sx + sl_w + gap, sy), pnl_val, font=stats_font, fill=pnl_color)
-    draw.text(
-        (sx + sl_w + gap + pv_w + gap * 2, sy),
-        days_label,
-        font=stats_font,
-        fill="#9ca3af",
-    )
+    draw.text((sx + sl_w + gap + pv_w + gap * 2, sy), days_label, font=stats_font, fill="#9ca3af")
 
     weekday_names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
-    draw.rectangle(
-        [0, top_header_h, width, top_header_h + weekday_header_h], fill="#1e2028"
-    )
+    draw.rectangle([0, top_header_h, width, top_header_h + weekday_header_h], fill="#1e2028")
     for i, name in enumerate(weekday_names):
         x = i * cell_width
         draw.text((x + 15, top_header_h + 12), name, font=weekday_font, fill="#6b7280")
@@ -155,9 +144,7 @@ def render_calendar_image(
             draw.rectangle([x0, y0, x1, y1], fill=cell_bg, outline="#2a2d35", width=1)
 
             if day != 0:
-                is_today = (
-                    year == today.year and month == today.month and day == today.day
-                )
+                is_today = (year == today.year and month == today.month and day == today.day)
                 if is_today:
                     r = 16
                     cx = x0 + 22
@@ -167,34 +154,18 @@ def render_calendar_image(
                     db = draw.textbbox((0, 0), day_str, font=day_font)
                     dw = db[2] - db[0]
                     dh = db[3] - db[1]
-                    draw.text(
-                        (cx - dw // 2, cy - dh // 2),
-                        day_str,
-                        font=day_font,
-                        fill="#ffffff",
-                    )
+                    draw.text((cx - dw // 2, cy - dh // 2), day_str, font=day_font, fill="#ffffff")
                 else:
-                    draw.text(
-                        (x0 + 10, y0 + 8), str(day), font=day_font, fill="#6b7280"
-                    )
+                    draw.text((x0 + 10, y0 + 8), str(day), font=day_font, fill="#6b7280")
 
                 if has_data:
                     value = user_data[date_key]["value"]
                     trades = user_data[date_key].get("trades", 0)
-                    pnl_display = (
-                        f"${value:.2f}" if value >= 0 else f"-${abs(value):.2f}"
-                    )
+                    pnl_display = f"${value:.2f}" if value >= 0 else f"-${abs(value):.2f}"
                     pnl_clr = "#4ade80" if value >= 0 else "#f87171"
                     trades_display = f"Trades: {trades}"
-                    draw.text(
-                        (x0 + 10, y0 + 42), pnl_display, font=pnl_font, fill=pnl_clr
-                    )
-                    draw.text(
-                        (x0 + 10, y0 + 82),
-                        trades_display,
-                        font=trades_font,
-                        fill="#e5e7eb",
-                    )
+                    draw.text((x0 + 10, y0 + 42), pnl_display, font=pnl_font, fill=pnl_clr)
+                    draw.text((x0 + 10, y0 + 82), trades_display, font=trades_font, fill="#e5e7eb")
 
     output = io.BytesIO()
     image.save(output, format="PNG")
@@ -244,22 +215,16 @@ async def add_pnl(
 ):
     now = datetime.now()
     if date < 1 or date > 31:
-        await interaction.response.send_message(
-            "❌ Date must be between 1 and 31", ephemeral=True
-        )
+        await interaction.response.send_message("❌ Date must be between 1 and 31", ephemeral=True)
         return
 
     date_key = f"{now.year}-{now.month:02d}-{date:02d}"
-    set_user_pnl(
-        str(user.id),
-        date_key,
-        {
-            "value": pnl,
-            "trades": trades,
-            "note": "No notes",
-            "timestamp": datetime.now().isoformat(),
-        },
-    )
+    set_user_pnl(str(user.id), date_key, {
+        "value": pnl,
+        "trades": trades,
+        "note": "No notes",
+        "timestamp": datetime.now().isoformat(),
+    })
 
     emoji = "📈" if pnl >= 0 else "📉"
     color_emoji = "🟢" if pnl >= 0 else "🔴"
@@ -271,9 +236,7 @@ async def add_pnl(
     )
 
 
-@bot.tree.command(
-    name="pnlsum", description="View your PnL summary (or another user's)"
-)
+@bot.tree.command(name="pnlsum", description="View your PnL summary (or another user's)")
 @discord.app_commands.describe(user="View another user's summary (optional)")
 async def pnl_summary(interaction: discord.Interaction, user: discord.Member = None):
     target = user or interaction.user
@@ -298,13 +261,8 @@ async def pnl_summary(interaction: discord.Interaction, user: discord.Member = N
     await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(
-    name="summarize",
-    description="Summarize recent messages from #trade-result using AI",
-)
-@discord.app_commands.describe(
-    limit="Number of recent messages to summarize (default 20, max 50)"
-)
+@bot.tree.command(name="summarize", description="Summarize recent messages from #trade-result using AI")
+@discord.app_commands.describe(limit="Number of recent messages to summarize (default 20, max 50)")
 async def summarize(interaction: discord.Interaction, limit: int = 20):
     try:
         await interaction.response.defer()
@@ -314,17 +272,13 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
 
     channel_id = interaction.channel.id if interaction.channel else None
     if channel_id not in ALLOWED_SUMMARY_CHANNELS:
-        await interaction.followup.send(
-            "❌ This command is not allowed in this channel.", ephemeral=True
-        )
+        await interaction.followup.send("❌ This command is not allowed in this channel.", ephemeral=True)
         return
 
     channel_name = interaction.channel.name if interaction.channel else "unknown"
 
     if not OPENAI_API_KEY:
-        await interaction.followup.send(
-            "❌ OpenAI API key is not configured.", ephemeral=True
-        )
+        await interaction.followup.send("❌ OpenAI API key is not configured.", ephemeral=True)
         return
 
     limit = max(1, min(limit, 50))
@@ -338,9 +292,7 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
     messages.reverse()
 
     if not messages:
-        await interaction.followup.send(
-            "❌ No messages found to summarize.", ephemeral=True
-        )
+        await interaction.followup.send("❌ No messages found to summarize.", ephemeral=True)
         return
 
     messages_text = "\n".join(messages)
@@ -380,17 +332,13 @@ async def summarize(interaction: discord.Interaction, limit: int = 20):
 
 
 @bot.tree.error
-async def on_app_command_error(
-    interaction: discord.Interaction, error: discord.app_commands.AppCommandError
-):
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
     print(f"[tree error] {error}")
     try:
         if interaction.response.is_done():
             await interaction.followup.send(f"❌ Error: {error}", ephemeral=True)
         else:
-            await interaction.response.send_message(
-                f"❌ Error: {error}", ephemeral=True
-            )
+            await interaction.response.send_message(f"❌ Error: {error}", ephemeral=True)
     except Exception as e:
         print(f"[tree error] failed to send error message: {e}")
 
