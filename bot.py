@@ -210,17 +210,19 @@ async def pnl(interaction: discord.Interaction, user: discord.Member = None):
     pnl="PnL value (positive or negative)",
     trades="Number of trades",
     note="Optional note",
+    user="Add PnL to another user's calendar (optional)",
 )
 async def add_pnl(
-    interaction: discord.Interaction, date: int, pnl: float, trades: int, note: str = ""
+    interaction: discord.Interaction, date: int, pnl: float, trades: int, note: str = "", user: discord.Member = None
 ):
     now = datetime.now()
     if date < 1 or date > 31:
         await interaction.response.send_message("❌ Date must be between 1 and 31", ephemeral=True)
         return
 
+    target = user or interaction.user
     date_key = f"{now.year}-{now.month:02d}-{date:02d}"
-    set_user_pnl(str(interaction.user.id), date_key, {
+    set_user_pnl(str(target.id), date_key, {
         "value": pnl,
         "trades": trades,
         "note": note or "No notes",
@@ -229,8 +231,9 @@ async def add_pnl(
 
     emoji = "📈" if pnl >= 0 else "📉"
     color_emoji = "🟢" if pnl >= 0 else "🔴"
+    for_label = f" for {target.display_name}" if user else ""
     await interaction.response.send_message(
-        f"{color_emoji} **PnL updated for {date_key}**\n"
+        f"{color_emoji} **PnL updated{for_label} — {date_key}**\n"
         f"{emoji} Value: `${pnl:+.2f}`\n"
         f"🔢 Trades: `{trades}`\n"
         f"📝 Note: {note or 'None'}",
