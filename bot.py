@@ -5,7 +5,6 @@ import calendar
 import json
 import os
 import io
-import uuid
 import aiohttp
 from openai import AsyncOpenAI
 from PIL import Image, ImageDraw, ImageFont
