@@ -29,7 +29,6 @@ def load_pnl_data():
         try:
             with open(DATA_FILE, "r") as f:
                 raw = json.load(f)
-            # Migrate old flat format {date_key: {...}} → {user_id: {date_key: {...}}}
             if raw and all(k[:4].isdigit() for k in raw.keys()):
                 pnl_data = {"legacy": raw}
             else:
@@ -96,7 +95,6 @@ def render_calendar_image(
     pnl_font = get_font(30)
     trades_font = get_font(19)
 
-    # --- Top header ---
     total_pnl = sum(data["value"] for data in user_data.values())
     trading_days = len(user_data)
     pnl_color = "#4ade80" if total_pnl >= 0 else "#f87171"
@@ -131,7 +129,6 @@ def render_calendar_image(
         fill="#9ca3af",
     )
 
-    # --- Weekday header row ---
     weekday_names = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
     draw.rectangle(
         [0, top_header_h, width, top_header_h + weekday_header_h], fill="#1e2028"
@@ -140,7 +137,6 @@ def render_calendar_image(
         x = i * cell_width
         draw.text((x + 15, top_header_h + 12), name, font=weekday_font, fill="#6b7280")
 
-    # --- Cells ---
     for row_index, week in enumerate(cal):
         y0 = top_header_h + weekday_header_h + row_index * cell_height
         for col_index, day in enumerate(week):
