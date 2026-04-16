@@ -176,17 +176,21 @@ def render_calendar_image(year: int, month: int, user_data: dict, display_name: 
 @bot.tree.command(name="pnl", description="Show your PnL calendar (or another user's)")
 @discord.app_commands.describe(user="View another user's calendar (optional)")
 async def pnl(interaction: discord.Interaction, user: discord.Member = None):
+    await interaction.response.defer()
     target = user or interaction.user
     now = datetime.now()
-    user_data = get_user_pnl(str(target.id))
+    all_user_data = get_user_pnl(str(target.id))
     display_name = target.display_name if user else ""
 
-    image_bytes = render_calendar_image(now.year, now.month, user_data, display_name)
+    month_prefix = f"{now.year}-{now.month:02d}-"
+    month_data = {k: v for k, v in all_user_data.items() if k.startswith(month_prefix)}
+
+    image_bytes = render_calendar_image(now.year, now.month, all_user_data, display_name)
     file = discord.File(image_bytes, filename="calendar.png")
 
-    total_pnl = sum(data["value"] for data in user_data.values())
-    trading_days = len(user_data)
-    total_trades = sum(data.get("trades", 0) for data in user_data.values())
+    total_pnl = sum(data["value"] for data in month_data.values())
+    trading_days = len(month_data)
+    total_trades = sum(data.get("trades", 0) for data in month_data.values())
 
     title = f"📅 {target.display_name} — {calendar.month_name[now.month]} {now.year}"
     embed = discord.Embed(title=title, color=discord.Color.blue())
@@ -196,7 +200,7 @@ async def pnl(interaction: discord.Interaction, user: discord.Member = None):
         inline=False,
     )
     embed.set_image(url="attachment://calendar.png")
-    await interaction.response.send_message(embed=embed, file=file)
+    await interaction.followup.send(embed=embed, file=file)
 
 
 @bot.tree.command(name="addpnl", description="Add PnL for a specific date")
