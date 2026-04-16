@@ -28,14 +28,10 @@ def load_pnl_data():
         try:
             with open(DATA_FILE, "r") as f:
                 raw = json.load(f)
-            if raw:
-                first_val = next(iter(raw.values()))
-                if isinstance(first_val, dict) and "value" in first_val:
-                    pnl_data = {"legacy": raw}
-                else:
-                    pnl_data = raw
+            if raw and all(k[:4].isdigit() for k in raw.keys()):
+                pnl_data = {"legacy": raw}
             else:
-                pnl_data = {}
+                pnl_data = raw
         except:
             pnl_data = {}
     else:
@@ -351,8 +347,6 @@ async def on_app_command_error(interaction: discord.Interaction, error: discord.
 async def on_ready():
     load_pnl_data()
     try:
-        bot.tree.clear_commands(guild=None)
-        await bot.tree.sync()
         bot.tree.copy_global_to(guild=GUILD_ID)
         synced = await bot.tree.sync(guild=GUILD_ID)
         print(f"Synced {len(synced)} command(s) to guild")
