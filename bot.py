@@ -66,7 +66,6 @@ CHECKLIST_ITEMS = [
     "Retest (OB / FVG)",
     "Higher Timeframe Alignment",
     "No High Impact News",
-    "Clean Entry (No FOMO)"
 ]
 
 
