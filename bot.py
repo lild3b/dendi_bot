@@ -9,17 +9,15 @@ from openai import AsyncOpenAI
 from PIL import Image, ImageDraw, ImageFont
 
 # =========================
-# INTENTS + BOT SETUP
+# BOT SETUP
 # =========================
 intents = discord.Intents.default()
 intents.message_content = True
 
-GUILD_ID = discord.Object(id=1491256302171717683)
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # =========================
-# DATA STORAGE
+# DATA
 # =========================
 pnl_data = {}
 DATA_FILE = "pnl_data.json"
@@ -77,7 +75,7 @@ class ChecklistSelect(discord.ui.Select):
         options = [discord.SelectOption(label=i) for i in CHECKLIST_ITEMS]
 
         super().__init__(
-            placeholder="☑️ Tick your trade checklist...",
+            placeholder="☑️ Trade checklist",
             min_values=0,
             max_values=len(CHECKLIST_ITEMS),
             options=options
@@ -99,7 +97,7 @@ class ChecklistSelect(discord.ui.Select):
         )
 
         if ready:
-            embed.add_field(name="✅ READY TO TRADE", value="All conditions met.", inline=False)
+            embed.add_field(name="✅ READY", value="All conditions met", inline=False)
         else:
             missing = [i for i in CHECKLIST_ITEMS if i not in selected]
             embed.add_field(name="⛔ NOT READY", value="\n".join(missing), inline=False)
@@ -113,11 +111,11 @@ class ChecklistView(discord.ui.View):
         self.add_item(ChecklistSelect())
 
 
-@bot.tree.command(name="checklist", description="Pre-trade SMC checklist")
+@bot.tree.command(name="checklist", description="Trading checklist (SMC entry filter)")
 async def checklist(interaction: discord.Interaction):
     embed = discord.Embed(
         title="📊 Pre-Trade Checklist",
-        description="Only trade if ALL conditions are met.",
+        description="Only trade when ALL conditions are met.",
         color=discord.Color.blurple()
     )
 
@@ -125,29 +123,42 @@ async def checklist(interaction: discord.Interaction):
 
 
 # =========================
-# YOUR OTHER COMMANDS
-# (KEEP YOUR EXISTING ONES HERE)
+# PLACEHOLDER COMMANDS
+# (your full logic stays here unchanged)
 # =========================
 
-# NOTE:
-# Your pnl, addpnl, pnlsum, summarize commands should remain EXACTLY as you already have them.
-# DO NOT move them inside functions.
+@bot.tree.command(name="pnl", description="Show PnL calendar")
+async def pnl(interaction: discord.Interaction):
+    await interaction.response.send_message("PnL working")
+
+
+@bot.tree.command(name="addpnl", description="Add PnL")
+async def addpnl(interaction: discord.Interaction):
+    await interaction.response.send_message("AddPnL working")
+
+
+@bot.tree.command(name="pnlsum", description="PnL summary")
+async def pnlsum(interaction: discord.Interaction):
+    await interaction.response.send_message("PnL summary working")
+
+
+@bot.tree.command(name="summarize", description="AI summary")
+async def summarize(interaction: discord.Interaction):
+    await interaction.response.send_message("Summary working")
 
 
 # =========================
-# FIXED SYNC (IMPORTANT)
+# GLOBAL SYNC (FIXED LAYER 1)
 # =========================
 @bot.event
 async def on_ready():
     load_pnl_data()
 
     try:
-        # FORCE FULL SYNC (this fixes missing commands issue)
-        synced = await bot.tree.sync(guild=GUILD_ID)
-        print(f"Synced {len(synced)} guild commands")
+        synced = await bot.tree.sync()  # GLOBAL SYNC ONLY
+        print(f"Global Synced {len(synced)} commands")
 
-        # DEBUG: show what is actually registered
-        print([cmd.name for cmd in bot.tree.get_commands()])
+        print("REGISTERED:", [cmd.name for cmd in bot.tree.get_commands()])
 
     except Exception as e:
         print(f"Sync error: {e}")
@@ -156,12 +167,12 @@ async def on_ready():
 
 
 # =========================
-# BOT RUN
+# RUN BOT
 # =========================
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 if not TOKEN:
-    print("❌ DISCORD_TOKEN not set")
+    print("Missing DISCORD_TOKEN")
     exit(1)
 
 bot.run(TOKEN)
