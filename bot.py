@@ -19,73 +19,8 @@ DATA_FILE = "pnl_data.json"
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 ALLOWED_SUMMARY_CHANNELS = [1491280657387622420]
+GUILD_ID = discord.Object(id=1491256302171717683)
 
-
-# =========================
-# CHECKLIST SYSTEM (ADDED)
-# =========================
-CHECKLIST_ITEMS = [
-    "Liquidity Sweep",
-    "Market Structure Shift (MSS)",
-    "Retest (OB / FVG)",
-    "Higher Timeframe Alignment",
-    "No High Impact News",
-]
-
-
-class ChecklistSelect(discord.ui.Select):
-    def __init__(self):
-        options = [discord.SelectOption(label=i) for i in CHECKLIST_ITEMS]
-        super().__init__(
-            placeholder="☑️ Select checklist items...",
-            min_values=0,
-            max_values=len(CHECKLIST_ITEMS),
-            options=options
-        )
-
-    async def callback(self, interaction: discord.Interaction):
-        selected = self.values
-
-        display = []
-        for item in CHECKLIST_ITEMS:
-            display.append(("☑️" if item in selected else "☐") + " " + item)
-
-        ready = len(selected) == len(CHECKLIST_ITEMS)
-
-        embed = discord.Embed(
-            title="📊 Trade Checklist",
-            description="\n".join(display),
-            color=discord.Color.green() if ready else discord.Color.orange()
-        )
-
-        if ready:
-            embed.add_field(name="✅ READY", value="All conditions met", inline=False)
-        else:
-            missing = [i for i in CHECKLIST_ITEMS if i not in selected]
-            embed.add_field(name="⛔ NOT READY", value="\n".join(missing), inline=False)
-
-        await interaction.response.edit_message(embed=embed, view=self.view)
-
-
-class ChecklistView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=300)
-        self.add_item(ChecklistSelect())
-
-
-@bot.tree.command(name="checklist", description="Pre-trade checklist")
-async def checklist(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="📊 Pre-Trade Checklist",
-        description="Only trade when ALL conditions are met.",
-        color=discord.Color.blurple()
-    )
-    await interaction.response.send_message(embed=embed, view=ChecklistView())
-
-
-# =========================
-# ORIGINAL CODE (UNCHANGED)
-# =========================
 
 def load_pnl_data():
     global pnl_data
@@ -210,21 +145,15 @@ def render_calendar_image(year: int, month: int, user_data: dict, display_name: 
 
             if day != 0:
                 is_today = (year == today.year and month == today.month and day == today.day)
-
                 if is_today:
                     r = 16
                     cx = x0 + 22
                     cy = y0 + 18
-
-                    # Blue circle
                     draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill="#3b82f6")
-
-                    # Centered day number
                     day_str = str(day)
                     db = draw.textbbox((0, 0), day_str, font=day_font)
                     dw = db[2] - db[0]
                     dh = db[3] - db[1]
-
                     draw.text((cx - dw // 2, cy - dh // 2), day_str, font=day_font, fill="#ffffff")
                 else:
                     draw.text((x0 + 10, y0 + 8), str(day), font=day_font, fill="#6b7280")
@@ -253,72 +182,247 @@ async def pnl(interaction: discord.Interaction, user: discord.Member = None):
     all_user_data = get_user_pnl(str(target.id))
     display_name = target.display_name if user else ""
 
+    month_prefix = f"{now.year}-{now.month:02d}-"
+    month_data = {k: v for k, v in all_user_data.items() if k.startswith(month_prefix)}
+
     image_bytes = render_calendar_image(now.year, now.month, all_user_data, display_name)
     file = discord.File(image_bytes, filename="calendar.png")
 
-    embed = discord.Embed(title="PnL Calendar", color=discord.Color.blue())
-    embed.set_image(url="attachment://calendar.png")
+    total_pnl = sum(data["value"] for data in month_data.values())
+    trading_days = len(month_data)
+    total_trades = sum(data.get("trades", 0) for data in month_data.values())
 
+    title = f"📅 {target.display_name} — {calendar.month_name[now.month]} {now.year}"
+    embed = discord.Embed(title=title, color=discord.Color.blue())
+    embed.add_field(
+        name="Monthly stats",
+        value=f"🟢 `${total_pnl:+.2f}`  📊 Days: `{trading_days}`  🔢 Trades: `{total_trades}`",
+        inline=False,
+    )
+    embed.set_image(url="attachment://calendar.png")
     await interaction.followup.send(embed=embed, file=file)
 
 
 @bot.tree.command(name="addpnl", description="Add PnL for a specific date")
-async def add_pnl(interaction: discord.Interaction, date: int, pnl: float, trades: int):
+@discord.app_commands.describe(
+    user="The user whose calendar this PnL belongs to",
+    date="Day of the month",
+    pnl="PnL value (positive or negative)",
+    trades="Number of trades",
+)
+async def add_pnl(
+    interaction: discord.Interaction,
+    user: discord.Member,
+    date: int,
+    pnl: float,
+    trades: int,
+):
     now = datetime.now()
-    date_key = f"{now.year}-{now.month:02d}-{date:02d}"
+    if date < 1 or date > 31:
+        await interaction.response.send_message("❌ Date must be between 1 and 31", ephemeral=True)
+        return
 
-    set_user_pnl(str(interaction.user.id), date_key, {
+    date_key = f"{now.year}-{now.month:02d}-{date:02d}"
+    set_user_pnl(str(user.id), date_key, {
         "value": pnl,
-        "trades": trades
+        "trades": trades,
+        "note": "No notes",
+        "timestamp": datetime.now().isoformat(),
     })
 
-    await interaction.response.send_message("PnL updated")
+    emoji = "📈" if pnl >= 0 else "📉"
+    color_emoji = "🟢" if pnl >= 0 else "🔴"
+    await interaction.response.send_message(
+        f"{color_emoji} **PnL updated for {user.display_name} — {date_key}**\n"
+        f"{emoji} Value: `${pnl:+.2f}`\n"
+        f"🔢 Trades: `{trades}`",
+        ephemeral=True,
+    )
 
 
-@bot.tree.command(name="pnlsum", description="View your PnL summary")
-async def pnl_summary(interaction: discord.Interaction):
-    data = get_user_pnl(str(interaction.user.id))
-    total = sum(d["value"] for d in data.values())
+@bot.tree.command(name="pnlsum", description="View your PnL summary (or another user's)")
+@discord.app_commands.describe(user="View another user's summary (optional)")
+async def pnl_summary(interaction: discord.Interaction, user: discord.Member = None):
+    target = user or interaction.user
+    user_data = get_user_pnl(str(target.id))
 
-    await interaction.response.send_message(f"Total PnL: ${total:.2f}")
+    total = sum(data["value"] for data in user_data.values())
+    count = len(user_data)
+    total_trades = sum(data.get("trades", 0) for data in user_data.values())
+
+    embed = discord.Embed(
+        title=f"📈 {target.display_name}'s PnL Summary",
+        color=discord.Color.green() if total >= 0 else discord.Color.red(),
+    )
+    embed.add_field(name="Total PnL", value=f"**${total:.2f}**", inline=False)
+    embed.add_field(name="Trading Days", value=f"**{count}**", inline=False)
+    embed.add_field(name="Total Trades", value=f"**{total_trades}**", inline=False)
+    embed.add_field(
+        name="Average Daily PnL",
+        value=f"**${total / count:.2f}**" if count > 0 else "N/A",
+        inline=False,
+    )
+    await interaction.response.send_message(embed=embed)
 
 
-@bot.tree.command(name="summarize", description="AI summary of recent trades")
+@bot.tree.command(name="summarize", description="Summarize recent messages from #trade-result using AI")
+@discord.app_commands.describe(limit="Number of recent messages to summarize (default 20, max 50)")
 async def summarize(interaction: discord.Interaction, limit: int = 20):
-    await interaction.response.defer()
+    try:
+        await interaction.response.defer()
+    except Exception as e:
+        print(f"[summarize] defer failed: {e}")
+        return
+
+    channel_id = interaction.channel.id if interaction.channel else None
+    if channel_id not in ALLOWED_SUMMARY_CHANNELS:
+        await interaction.followup.send("❌ This command is not allowed in this channel.", ephemeral=True)
+        return
+
+    channel_name = interaction.channel.name if interaction.channel else "unknown"
+
+    if not OPENAI_API_KEY:
+        await interaction.followup.send("❌ OpenAI API key is not configured.", ephemeral=True)
+        return
+
+    limit = max(1, min(limit, 50))
 
     messages = []
     async for msg in interaction.channel.history(limit=limit):
-        if not msg.author.bot:
-            messages.append(msg.content)
+        if not msg.author.bot and msg.content.strip():
+            ts = msg.created_at.strftime("%Y-%m-%d %H:%M")
+            messages.append(f"[{ts}] {msg.author.display_name}: {msg.content}")
 
-    text = "\n".join(messages)
+    messages.reverse()
 
-    response = await openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "user", "content": text}]
+    if not messages:
+        await interaction.followup.send("❌ No messages found to summarize.", ephemeral=True)
+        return
+
+    messages_text = "\n".join(messages)
+
+    try:
+        response = await openai_client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a trading assistant. Summarize the trading activity from these Discord messages. "
+                        "Highlight key results, notable wins and losses, trade counts, and any patterns or insights. "
+                        "Be concise and clear."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"Here are the recent messages from #{channel_name}:\n\n{messages_text}",
+                },
+            ],
+            max_tokens=600,
+        )
+        reply = response.choices[0].message.content
+    except Exception as e:
+        print(f"[summarize] OpenAI error: {e}")
+        await interaction.followup.send(f"❌ Failed to reach AI: {e}", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title=f"🤖 AI Summary — #{channel_name}",
+        description=reply,
+        color=discord.Color.blurple(),
     )
+    embed.set_footer(text=f"Based on last {len(messages)} messages • Powered by OpenAI")
+    await interaction.followup.send(embed=embed)
 
-    await interaction.followup.send(response.choices[0].message.content)
 
+@bot.tree.error
+async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+    print(f"[tree error] {error}")
+    try:
+        if interaction.response.is_done():
+            await interaction.followup.send(f"❌ Error: {error}", ephemeral=True)
+        else:
+            await interaction.response.send_message(f"❌ Error: {error}", ephemeral=True)
+    except Exception as e:
+        print(f"[tree error] failed to send error message: {e}")
 
 # =========================
-# GLOBAL SYNC (UPDATED)
+# ADD THIS BLOCK (CHECKLIST)
 # =========================
+CHECKLIST_ITEMS = [
+    "Liquidity Sweep",
+    "Market Structure Shift (MSS)",
+    "Retest (OB / FVG)",
+    "Higher Timeframe Alignment",
+    "No High Impact News",
+]
+
+class ChecklistSelect(discord.ui.Select):
+    def __init__(self):
+        options = [discord.SelectOption(label=i) for i in CHECKLIST_ITEMS]
+        super().__init__(
+            placeholder="☑️ Select checklist items...",
+            min_values=0,
+            max_values=len(CHECKLIST_ITEMS),
+            options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        selected = self.values
+
+        display = []
+        for item in CHECKLIST_ITEMS:
+            display.append(("☑️" if item in selected else "☐") + " " + item)
+
+        ready = len(selected) == len(CHECKLIST_ITEMS)
+
+        embed = discord.Embed(
+            title="📊 Trade Checklist",
+            description="\n".join(display),
+            color=discord.Color.green() if ready else discord.Color.orange()
+        )
+
+        if ready:
+            embed.add_field(name="✅ READY", value="All conditions met", inline=False)
+        else:
+            missing = [i for i in CHECKLIST_ITEMS if i not in selected]
+            embed.add_field(name="⛔ NOT READY", value="\n".join(missing), inline=False)
+
+        await interaction.response.edit_message(embed=embed, view=self.view)
+
+
+class ChecklistView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=300)
+        self.add_item(ChecklistSelect())
+
+
+@bot.tree.command(name="checklist", description="Pre-trade checklist")
+async def checklist(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="📊 Pre-Trade Checklist",
+        description="Only trade when ALL conditions are met.",
+        color=discord.Color.blurple()
+    )
+    await interaction.response.send_message(embed=embed, view=ChecklistView())
+
+
 @bot.event
 async def on_ready():
     load_pnl_data()
-
-    synced = await bot.tree.sync()
-    print(f"Global Synced {len(synced)} commands")
-    print("REGISTERED:", [cmd.name for cmd in bot.tree.get_commands()])
+    try:
+        synced = await bot.tree.sync()  # ✅ GLOBAL SYNC
+        print(f"Global Synced {len(synced)} commands")
+        print("REGISTERED:", [cmd.name for cmd in bot.tree.get_commands()])
+    except Exception as e:
+        print(f"Failed to sync commands: {e}")
 
     print(f"Logged in as {bot.user}")
 
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 if not TOKEN:
-    print("❌ DISCORD_TOKEN not set!")
+    print("❌ DISCORD_TOKEN environment variable not set!")
     exit(1)
 
 bot.run(TOKEN)
